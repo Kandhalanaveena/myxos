@@ -1,0 +1,159 @@
+alias physicalSP S0;
+physicalSP= ([PTBR +2* (SP/512)] *512) +(SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+alias counter S12;
+
+if(sysCallNo==8) then
+   alias pcb S2;
+   pcb=READY_LIST;
+   while(pcb<2560 && [pcb+1]!=0) do
+      pcb=pcb+32;
+   endwhile;
+   if(pcb>=2560) then
+      [physicalSP-2]=-1;
+      ireturn;
+   endif;
+      alias pcbind S3;
+      pcbind=(pcb-READY_LIST)/32;
+      [pcb]=pcbind;
+
+      alias temp S4;
+
+      alias freepg S5;
+      alias count S6;
+      temp=MEM_LIST;
+          while(temp<(MEM_LIST+64) && [temp]!=0) do
+             temp=temp+1;
+          endwhile;
+       if(temp<MEM_LIST+64) then
+           freepg=temp-MEM_LIST;
+           [temp]=1;
+       else
+        counter =0;
+         
+         while(1) do
+           
+           if((counter%8)==6) then
+              counter=(counter+2)%256;
+              continue;
+           endif;
+           
+               if([PAGE_TABLE+counter+1]=="11" ) then
+                  [PAGE_TABLE+counter+1]="01";
+               else
+                  if([PAGE_TABLE+counter+1]=="01" && [MEM_LIST+[PAGE_TABLE+counter]]==1 ) then
+                     alias count S7;
+                     count=DISK_LIST+448;
+                     while(count<DISK_LIST+512 && [count]!=0) do
+                        count=count+1;
+                     endwhile;
+                     if(count>=DISK_LIST+512) then
+                        [physicalSP-2]=-1;
+                        ireturn;
+                     endif;
+                     [count]=[count]+1;
+                     alias disk S9;
+                     disk=count-DISK_LIST;
+                     store([PAGE_TABLE+counter],disk);
+                     freepg=[PAGE_TABLE+counter]; 																
+                     [PAGE_TABLE+counter]=disk;
+
+                     [PAGE_TABLE+counter+1]="00";
+                     break;
+                   endif;
+                endif;
+            
+            counter=(counter+2)%256;
+            
+         endwhile;
+        endif;
+                
+            
+                              
+      alias ptbr S7;
+      ptbr=(1024+pcbind*8);
+
+      alias ppage S8;
+      alias cpage S9;
+      alias num S10;
+
+         //setting and copying only the stack page
+                  
+          ppage=PTBR+6;
+          cpage=ptbr+6;
+          [cpage]=freepg;
+          [cpage+1]="01";
+          num=0;
+          while(num<512) do
+             [[cpage]*512+num]=[[ppage]*512+num];            
+             num=num+1;
+          endwhile;
+          
+          //copying pagetable other than stack
+          
+       count=0;
+       while(count<3) do
+         ppage=PTBR+(count*2);
+         cpage=ptbr+(count*2);
+         [cpage]=[ppage];
+         [cpage+1]=[ppage+1];
+         
+         if([cpage+1]!="00") then
+            [MEM_LIST+[cpage]]=[MEM_LIST+[cpage]]+1;
+         
+ 
+         else
+            if([cpage]>=448) then
+               [DISK_LIST+[cpage]]=[DISK_LIST+[cpage]]+1;
+            endif;
+         endif;
+         count=count+1;
+       endwhile;
+       
+       store(6,20);
+      [pcb+5]=ptbr;
+      [pcb+4]=[physicalSP];
+      [pcb+3]=SP-1;
+      [pcb+2]=BP;
+      [pcb+6]=4;
+      [pcb+7]=R0;
+      [pcb+8]=R1;
+      [pcb+9]=R2;
+      [pcb+10]=R3;
+      [pcb+11]=R4;
+      [pcb+12]=R5;
+      [pcb+13]=R6;
+      [pcb+14]=R7;
+      alias ppid S10;
+      ppid=(PTBR-1024)/8;
+      alias ppcb S11;
+      ppcb=(READY_LIST+(ppid*32));
+      count=15;
+      alias swoftind S12;
+      alias swoft S4;
+      while(count<=30) do
+         [pcb+count]=[ppcb+count];
+         swoftind=[ppcb+count];
+         if(swoftind!=-1) then
+             swoft=FILE_TABLE+(swoftind*2)+1;
+             [swoft]=[swoft]+1;
+         endif;
+         [pcb+count+1]=[ppcb+count+1];
+         count=count+2;
+      endwhile;
+      [pcb+1]=1;
+      [pcb+31]=ppid;
+      [physicalSP-2]=pcbind;
+      alias cphysiSP S0;
+      cphysiSP= ([ptbr +2* ((SP-1)/512)] *512) +((SP-1)%512);
+      [cphysiSP-1]=-2;
+
+      
+     
+endif;  
+ireturn;
+
+    
+

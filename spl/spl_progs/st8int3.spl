@@ -1,0 +1,91 @@
+alias physicalSP S0;
+physicalSP= ([PTBR +2* (SP/512)] *512) +(SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+//print (sysCallNo);
+
+if(sysCallNo==6) then
+  alias filedesc S2;
+  filedesc=[physicalSP-4];
+
+  alias newLseek S3;
+  newLseek=[physicalSP-3];
+
+
+ if(filedesc<0 || filedesc>7) then
+     [physicalSP-2]=-1;
+     ireturn;
+ endif;
+     alias pid S4;
+     pid=(PTBR-1024)/8;
+     alias ppoft S5;
+     ppoft=READY_LIST+(pid*32)+15+(filedesc*2);
+     if([ppoft]==-1) then
+         [physicalSP-2]=-1;
+         ireturn;
+     endif;
+     alias swoftind S6;
+     swoftind=[ppoft];
+     
+     alias fatindex S7;
+     fatindex=[FILE_TABLE+(swoftind*2)];
+     alias filesize S8;
+     filesize=[FAT+(fatindex*8)+1];
+
+     if(newLseek<0 || newLseek>filesize) then
+        [physicalSP-2]=-1;
+        ireturn;
+     endif;
+      [ppoft+1]=newLseek;
+
+      [physicalSP-2]=0;
+endif;  
+
+if(sysCallNo==7) then
+  alias filedesc S2;
+  filedesc=[physicalSP-4];
+  
+   if(filedesc<0 || filedesc>7) then
+     [physicalSP-2]=-1;
+     ireturn;
+   endif;
+     alias pid S3;
+     pid=(PTBR-1024)/8;
+     alias ppoft S4;
+     ppoft=READY_LIST+(pid*32)+15+(filedesc*2);
+     if([ppoft]==-1) then
+         [physicalSP-2]=-1;
+         ireturn;
+     endif;
+     alias swoftind S5;
+     alias lseek S6;
+     swoftind=[ppoft];
+     lseek=[ppoft+1];
+     alias fatindex S7;
+     fatindex=[FILE_TABLE+(swoftind*2)];
+     alias fat S8;
+     fat=FAT+(fatindex*8);
+     alias filesize S9;
+     filesize=[fat+1];
+     if(lseek==filesize) then
+        [physicalSP-2]=-1;
+        ireturn;
+     endif;
+     alias blockno S10;
+     blockno=[fat+2];
+     load(1,blockno);
+     alias databno S11;
+     databno=[SCRATCHPAD+(lseek/512)];
+     
+      load(1,databno);
+      alias word S12;
+      word=[SCRATCHPAD+(lseek%512)];
+      [physicalSP-3]=word;
+      [ppoft+1]=lseek+1;
+      [physicalSP-2]=0;
+endif;  
+ireturn;
+
+    
+

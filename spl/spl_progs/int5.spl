@@ -1,0 +1,119 @@
+alias physicalSP S1;
+physicalSP=[PTBR+2*(SP/512)]*512+SP%512;
+alias counter S0;
+counter=READY_LIST;
+while(counter<READY_LIST+(32*32) && [counter+1]!=0) do
+   counter=counter+32;
+endwhile;
+if(counter==READY_LIST+(32*32)) then
+  [physicalSP-2]=-1;
+  ireturn;
+endif;
+alias newpid S2;
+newpid=(counter-READY_LIST)/32;
+alias newpcb S3;
+newpcb=counter;
+[newpcb+0]=newpid;
+alias count1 S4;
+alias count2 S5;
+count1=0;
+counter=PTBR;
+while(counter<PTBR+2*PTLR) do
+ if([counter+1]!="00") then //
+    count1=count1+1;
+ endif;
+ counter=counter+2;
+endwhile;
+count2=0;
+counter=MEM_LIST;
+while(counter<MEM_LIST+64) do
+  if([counter]==0) then
+   count2=count2+1;
+  endif;
+  counter=counter+1;
+endwhile;
+if(count2<count1) then
+ [physicalSP-2]=-1;
+ ireturn;
+endif;
+alias newPTBR S6;
+newPTBR=1024+8*newpid;
+counter=PTBR;
+alias counter1 S7;
+counter1=newPTBR;
+//print([PTBR+1]);
+//print([PTBR+3]);
+//print([PTBR+5]);
+//print([PTBR+7]);
+while(counter<PTBR+2*PTLR) do
+   if([counter+1]!="00") then
+       count1=MEM_LIST+29;
+       while(count1<MEM_LIST+64 && [count1]!=0) do
+          count1=count1+1;
+       endwhile;
+       [count1]=1;
+       [counter1]=count1-MEM_LIST;
+       //print(count1-MEM_LIST);
+       [counter1+1]="01";
+       count2=[counter]*512;
+       count1=[counter1]*512;
+       while(count2<[counter]*512+512) do
+          [count1]=[count2];
+          count1=count1+1;
+          count2=count2+1;
+       endwhile;
+       counter=counter+2;
+       counter1=counter1+2;
+   else
+      [counter1]=[counter];
+      [counter1+1]=[counter+1];
+      counter=counter+2;
+      counter1=counter1+2;
+   endif;
+endwhile;
+[newpcb+5]=newPTBR;
+[newpcb+6]=4;
+[newpcb+4]=[physicalSP];
+[newpcb+3]=SP-1;
+[newpcb+2]=BP;
+[newpcb+7]=R0;
+[newpcb+8]=R1;
+[newpcb+9]=R2;
+[newpcb+10]=R3;
+[newpcb+11]=R4;
+[newpcb+12]=R5;
+[newpcb+13]=R6;
+[newpcb+14]=R7;
+alias currentpid S8;
+alias currentpcb S9;
+currentpid=(PTBR-1024)/8;
+currentpcb=READY_LIST+(currentpid*32);
+counter=currentpcb+15;
+counter1=newpcb+15;
+while(counter<currentpcb+31) do
+      [counter1]=[counter];
+      [counter1+1]=[counter+1];
+      [FILE_TABLE+2*[counter]+1]= [FILE_TABLE+2*[counter]+1]+1;
+      counter=counter+2;
+      counter1=counter1+2;
+endwhile;
+[newpcb+1]=1;
+[physicalSP-2]=newpid;
+alias newphysicalSP S10;
+newphysicalSP=[newPTBR+2*((SP-1)/512)]*512+((SP-1)%512);
+[newphysicalSP-1]=-2;
+//print(physicalSP);
+//print(newphysicalSP);
+//print(newpid);
+//print(currentpid);
+//print(PTBR);
+//print(newPTBR);
+//print([PTBR+0]);
+//print([newPTBR+0]);
+//print([PTBR+2]);
+//print([newPTBR+2]);
+//print([PTBR+4]);
+//print([newPTBR+4]);
+//print([PTBR+6]);
+//print([newPTBR+6]);
+ireturn;

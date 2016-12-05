@@ -1,0 +1,151 @@
+alias physicalSP S0;
+physicalSP= ([PTBR +2* (SP/512)] *512) +(SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+ alias filename S2;
+  alias pid S3;
+ pid=(PTBR-1024)/8;
+
+if(sysCallNo==9) then
+
+ filename=[physicalSP-3];
+
+ alias pcb S4;
+ pcb =(READY_LIST+pid*32);
+ 
+ [pcb+31]=filename;
+ [physicalSP-2]=0;
+endif;
+ 
+if(S14==1) then
+       alias pcb S12;
+       pcb=READY_LIST+pid*32;
+       
+       filename=S13;
+       
+  alias fat S7;
+   fat=FAT;
+   while(fat<(FAT+512) && [fat]!=filename) do
+      fat=fat+8;
+   endwhile;
+   if(fat>=(FAT+512)) then
+      [physicalSP-2]=-1;
+      ireturn;
+   endif;
+
+      //counting codeblocks
+      
+      alias blockno S4;
+      blockno=[fat+2];
+      load (1,blockno);
+
+      alias codeblocks S5;
+      alias temp S6;
+      temp=0;
+      codeblocks=0;
+      while(temp<3) do       //change
+        if([SCRATCHPAD+temp]!=-1 && [SCRATCHPAD+temp]!="") then
+            codeblocks=codeblocks+1;
+        endif;
+        temp=temp+1;
+      endwhile;
+      
+      print(codeblocks);
+
+      // for changing Pagetable
+      
+      alias count S8;
+      alias mempg S9;
+      count=0;
+      while(count<3) do
+        mempg=PTBR+(count*2);
+        if([mempg+1]!="00") then
+           [MEM_LIST+[mempg]]=[MEM_LIST+[mempg]]-1;
+        else
+            if([mempg]>=448) then
+               [DISK_LIST+[mempg]]=[DISK_LIST+[mempg]]-1;
+            endif;
+        endif;
+        count=count+1;
+      endwhile;
+      
+      store(6,20);
+
+           
+       //chaning entries in pagetable - diskblock numbers instead of mempages to support pure demand paging
+
+       count=0;
+       alias diskbl S11;
+       while(count<codeblocks) do            //change
+          mempg=PTBR+(count*2);
+          diskbl=[SCRATCHPAD+count];
+          [mempg]=diskbl;
+          [mempg+1]="00";
+          count=count+1;
+       endwhile;
+       
+       count=codeblocks;
+       while(count<3) do
+          mempg=PTBR+(count*2);
+          [mempg]=-1;
+          [mempg+1]="00";
+          count=count+1;
+       endwhile;
+          
+        //keeping valid for stack;
+          [PTBR+7]="01";
+       
+        
+        //closing all opened files
+        
+      // alias pid S12;
+       pid=(PTBR-1024)/8;
+      // alias pcb S13;
+       pcb=READY_LIST+pid*32;
+       alias ppoft S5;
+       pcb=pcb+15;
+       ppoft=pcb;
+       count=0;
+       while(count<16) do
+         ppoft=pcb+count;
+         if([ppoft]!=-1) then
+           alias swoftind S6;
+           swoftind=[ppoft];
+           alias swoft S7;
+           swoft=FILE_TABLE +(swoftind*2);
+           [swoft+1]=[swoft+1]-1;
+           if([swoft+1]==0) then
+               [swoft]=-1;
+           endif;
+           [ppoft]=-1;
+           [ppoft+1]=-1;
+         endif;
+         count=count+2;
+       endwhile;
+       
+       SP=3*512;
+       alias newphysicalSP S12;
+       newphysicalSP=([PTBR +2* (SP/512)] *512) +(SP%512);
+       [newphysicalSP]=0; 
+       
+       [physicalSP-2]=0;
+         
+endif;  
+
+
+if(sysCallNo==11) then 
+    // alias pid S2;
+    // pid=(PTBR-1024)/8;
+     [physicalSP-2]=pid;
+endif;
+
+if(sysCallNo==12) then 
+    // alias pid S2;
+     //pid=(PTBR-1024)/8;
+     alias pcb S4;
+     pcb=[(READY_LIST+pid*32)+31];  //parent pid
+     [physicalSP-2]=pcb;
+endif;
+ireturn;
+

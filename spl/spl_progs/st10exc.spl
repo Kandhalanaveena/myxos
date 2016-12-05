@@ -1,0 +1,123 @@
+alias Cause S1;
+alias VPagenum S2;
+alias Ip_addr S3;
+
+Cause=EFR%10;
+VPagenum=(EFR/10)%100;
+Ip_addr=(EFR/1000);
+
+alias changeip S15;
+changeip=0;
+alias counter S10;
+
+print(Cause);
+
+if(Cause==1) then
+   print ("illegal instruction");
+   changeip=1;
+   inline "JMP 11776";
+  
+endif;
+   
+if(Cause==2) then
+   print ("illegal memory access");
+   changeip=1;
+   inline "JMP 11776";
+endif;
+   
+if(Cause==3) then
+   print ("Arithmetic exception");
+   changeip=1;
+   inline "JMP 11776";
+endif;
+
+if(Cause==4) then
+   print ("illegal operands");
+   changeip=1;
+   inline "JMP 11776";
+endif;
+
+if(Cause==0) then
+   alias mempg S4;
+   mempg=PTBR+(VPagenum*2);
+   if([mempg]==-1) then
+      print("invalid pagenumber");
+      changeip=1;
+      inline "JMP 11776";
+   else
+      alias temp S5;
+      temp=MEM_LIST;
+      while(temp<MEM_LIST+64 && [temp]!=0) do
+         temp=temp+1;
+      endwhile;
+      alias freepg S6;
+      if([temp]==0) then
+         [temp]=1;
+         freepg=temp-MEM_LIST;
+      else
+         temp=mempg;
+         if(temp==(1024+32*8)) then
+            temp=1024;
+         endif;
+         
+         while(1) do
+           if((temp%8)!=6) then
+               if([temp+1]=="11" && [MEM_LIST+[temp]]==1) then
+                  [temp+1]="01";
+               else
+                  if([temp+1]=="01" && [MEM_LIST+[temp]]==1 ) then
+                     alias count S7;
+                     count=DISK_LIST+448;
+                     while(count<DISK_LIST+512 && [count]!=0) do
+                        count=count+1;
+                     endwhile;
+                     if(count>=DISK_LIST+512) then
+                        print("no free block");
+                        changeip=1;
+                        inline "JMP 11776";
+                     endif;
+                     [count]=1;
+                     alias disk S9;
+                     disk=[count-DISK_LIST];
+                     store([temp],disk);
+                     freepg=[temp]; 																
+                     [temp]=disk;
+                     print([temp]);
+                     [temp+1]="00";
+                     breakpoint;
+                     
+                     break;
+                   endif;
+                endif;
+            endif;
+            temp=temp+2;
+            if(temp==(1024+32*8)) then
+                temp=1024;
+            endif;
+         endwhile;
+      endif;   
+      if([mempg]>20 && [mempg] <448) then
+         load(freepg,[mempg]);
+      endif;
+      if([mempg]>=448 && [mempg]<512) then
+         load(freepg,[mempg]);
+         [DISK_LIST+[mempg]]=[DISK_LIST+[mempg]]-1;             
+      endif;
+      [mempg]=freepg; 
+      [mempg+1]="11";
+      
+      SP=SP+1;
+      alias physicalSP S8;
+      physicalSP= ([PTBR +2* (SP/512)] *512) +(SP%512);
+      [physicalSP]=Ip_addr;  
+      store(6,20);  
+                 
+   endif;
+endif;
+breakpoint;
+ireturn;
+   
+   
+     
+
+

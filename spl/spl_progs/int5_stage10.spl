@@ -1,0 +1,86 @@
+alias physicalSP S1;
+physicalSP=[PTBR+2*(SP/512)]*512+SP%512;
+alias counter S0;
+counter=READY_LIST;
+while(counter<READY_LIST+(32*32) && [counter+1]!=0) do
+   counter=counter+32;
+endwhile;
+if(counter==READY_LIST+(32*32)) then
+  [physicalSP-2]=-1;
+  ireturn;
+endif;
+alias newpid S2;
+newpid=(counter-READY_LIST)/32;
+alias newpcb S3;
+newpcb=counter;
+[newpcb+0]=newpid;
+alias newPTBR S6;
+newPTBR=1024+8*newpid;
+counter=MEM_LIST+29;
+while(counter<MEM_LIST+64 && [counter]!=0) do
+  counter=counter+1;
+endwhile;
+if(counter==MEM_LIST+64) then
+  [physicalSP-2]=-1;
+  ireturn;
+endif;
+[counter]=1;
+[newPTBR+6]=counter-MEM_LIST;
+[newPTBR+7]="01";
+alias counter1 S4;
+counter1=[PTBR+6]*512;
+counter=[newPTBR+6]*512;
+while(counter1<([PTBR+6]*512)+512) do
+ [counter]=[counter1];
+ counter=counter+1;
+ counter1=counter1+1;
+endwhile;
+counter=PTBR;
+counter1=newPTBR;
+while(counter<PTBR+6) do
+   [counter1]=[counter];
+   [counter1+1]=[counter+1];
+   if([counter+1]=="01" || [counter+1]=="11") then
+      [MEM_LIST+[counter]]=[MEM_LIST+[counter]]+1;
+   else
+     if([counter]>=448) then
+        [DISK_LIST+[counter]]=[DISK_LIST+[counter]]+1;
+     endif;
+   endif;
+   counter=counter+2;
+   counter1=counter1+2;
+endwhile;
+store(6,20);
+[newpcb+5]=newPTBR;
+[newpcb+6]=4;
+[newpcb+4]=[physicalSP];
+[newpcb+3]=SP-1;
+[newpcb+2]=BP;
+[newpcb+7]=R0;
+[newpcb+8]=R1;
+[newpcb+9]=R2;
+[newpcb+10]=R3;
+[newpcb+11]=R4;
+[newpcb+12]=R5;
+[newpcb+13]=R6;
+[newpcb+14]=R7;
+alias currentpid S8;
+alias currentpcb S9;
+currentpid=(PTBR-1024)/8;
+[newpcb+31]=currentpid;
+currentpcb=READY_LIST+(currentpid*32);
+counter=currentpcb+15;
+counter1=newpcb+15;
+while(counter<currentpcb+31) do
+      [counter1]=[counter];
+      [counter1+1]=[counter+1];
+      [FILE_TABLE+2*[counter]+1]= [FILE_TABLE+2*[counter]+1]+1;
+      counter=counter+2;
+      counter1=counter1+2;
+endwhile;
+[newpcb+1]=1;
+[physicalSP-2]=newpid;
+alias newphysicalSP S10;
+newphysicalSP=[newPTBR+2*((SP-1)/512)]*512+((SP-1)%512);
+[newphysicalSP-1]=-2;
+ireturn;

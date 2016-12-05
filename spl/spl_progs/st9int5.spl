@@ -1,0 +1,126 @@
+alias physicalSP S0;
+physicalSP= ([PTBR +2* (SP/512)] *512) +(SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+//print (sysCallNo);
+
+if(sysCallNo==8) then
+   alias pcb S2;
+   pcb=READY_LIST;
+   while(pcb<2560 && [pcb+1]!=0) do
+      pcb=pcb+32;
+   endwhile;
+   if(pcb>=2560) then
+      [physicalSP-2]=-1;
+      ireturn;
+   endif;
+      alias pcbind S3;
+      pcbind=(pcb-READY_LIST)/32;
+      [pcb]=pcbind;
+
+      alias temp S4;
+      alias validpgs S5;
+      validpgs=0;
+      temp=PTBR;
+      while(temp<PTBR+8) do
+         if([temp+1]!="00") then
+            validpgs=validpgs+1;
+         endif;
+         temp=temp+2;
+      endwhile;
+      temp=MEM_LIST;
+      alias mempgs S6;
+      mempgs=0;
+      while(temp<(MEM_LIST+64)) do
+          if([temp]==0) then
+             mempgs=mempgs+1;
+             if(mempgs==validpgs) then
+                break;
+             endif;
+          endif;
+          temp=temp+1;
+      endwhile;
+      if(validpgs>mempgs) then
+          [physicalSP-2]=-1;
+          ireturn;
+      endif;
+      
+      alias ptbr S5;
+      ptbr=(1024+pcbind*8);
+
+      alias count S6;
+      count=0;
+      alias ppage S7;
+      alias cpage S8;
+      alias num S9;
+
+      while(count<4) do
+        if([PTBR+(count*2)+1]!="00") then
+          temp=MEM_LIST;
+          while(temp<(MEM_LIST+64) && [temp]!=0) do
+             temp=temp+1;
+          endwhile;
+          [temp]=1;
+          ppage=PTBR+(count*2);
+          cpage=ptbr+(count*2);
+          [cpage]=temp-MEM_LIST;
+          [cpage+1]=[ppage+1];
+
+          num=0;
+          while(num<512) do
+             [[cpage]*512+num]=[[ppage]*512+num];            
+             num=num+1;
+          endwhile;
+
+        else
+          ppage=PTBR+(count*2);
+          cpage=ptbr+(count*2);
+          [cpage]=-1;
+          [cpage+1]=[ppage+1];
+        endif;
+        count=count+1;
+
+      endwhile;
+      
+      [pcb+5]=ptbr;
+      [pcb+4]=[physicalSP];
+      [pcb+3]=SP-1;
+      [pcb+2]=BP;
+      [pcb+6]=4;
+      [pcb+7]=R0;
+      [pcb+8]=R1;
+      [pcb+9]=R2;
+      [pcb+10]=R3;
+      [pcb+11]=R4;
+      [pcb+12]=R5;
+      [pcb+13]=R6;
+      [pcb+14]=R7;
+      alias ppid S9;
+      ppid=(PTBR-1024)/8;
+      alias ppcb S10;
+      ppcb=(READY_LIST+(ppid*32));
+      count=15;
+      alias swoftind S11;
+      alias swoft S12;
+      while(count<=30) do
+         [pcb+count]=[ppcb+count];
+         swoftind=[ppcb+count];
+         swoft=FILE_TABLE+(swoftind*2)+1;
+         [swoft]=[swoft]+1;
+         [pcb+count+1]=[ppcb+count+1];
+         count=count+2;
+      endwhile;
+      [pcb+1]=1;
+      [physicalSP-2]=pcbind;
+      alias cphysiSP S0;
+      cphysiSP= ([ptbr +2* ((SP-1)/512)] *512) +((SP-1)%512);
+      [cphysiSP-1]=-2;
+
+      
+     
+endif;  
+ireturn;
+
+    
+

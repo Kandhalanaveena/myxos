@@ -1,0 +1,117 @@
+alias physicalSP S0;
+physicalSP= ([PTBR +2* (SP/512)] *512) +(SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+//print (sysCallNo);
+
+alias filename S2;
+filename=[physicalSP-3];
+
+if(sysCallNo==1) then
+    alias fat S3;
+    fat=FAT;
+    while(fat<DISK_LIST && [fat]!=filename) do
+       fat=fat+8;
+    endwhile;
+    if(fat<DISK_LIST) then
+        [physicalSP-2]=0;
+        ireturn;
+    endif;
+    
+        alias disk S4;
+        disk=DISK_LIST+20;
+        while(disk<=DISK_LIST+447 && [disk]!=0) do
+             disk=disk+1;
+        endwhile;
+        if(disk>DISK_LIST+447) then
+             [physicalSP-2]=-1;
+             ireturn;
+        endif;
+             fat=FAT;
+             while([fat+2]!=-1 && fat<DISK_LIST) do
+                 fat=fat+8;
+             endwhile;
+             if(fat>=DISK_LIST) then
+                  [physicalSP-2]=-1;
+                  ireturn;
+             endif;
+                 [fat]=filename;
+                 [fat+1]=0;
+                 alias blockno S5;
+                 alias scratch S6;
+                 blockno=disk-DISK_LIST;
+                 [fat+2]=blockno;
+                 load(1,blockno);
+                 scratch=SCRATCHPAD;
+                 while(scratch<=SCRATCHPAD+511) do
+                      [scratch]=-1;
+                      scratch=scratch+1;
+                 endwhile;
+                 store(1,blockno);
+                 [DISK_LIST+blockno]=1;
+                 store(5,19);
+                 store(6,20);
+                 [physicalSP-2]=0; 
+endif;
+
+       
+if(sysCallNo==4) then
+     alias fat S3;
+     fat=FAT;
+
+     while(fat<DISK_LIST && [fat]!=filename) do
+       fat=fat+8;
+    endwhile;
+    if(fat>=DISK_LIST) then
+         [physicalSP-2]=-1;
+         ireturn;
+    endif;
+     alias fatindex S4;
+     fatindex=(fat-FAT)/8;
+
+     alias swoft S5;
+     swoft=FILE_TABLE;
+     while(swoft<=1471 && [swoft]!=fatindex) do
+       swoft=swoft+2;
+     endwhile;
+     if (swoft<=1471) then
+          [physicalSP-2]=-1;
+          ireturn;
+    endif;
+     alias blockno S6;
+     blockno=[fatindex*8 +FAT+2];
+     load(1,blockno);
+     alias databno S7;
+     alias count S8;
+     count=SCRATCHPAD;
+    while(count<(SCRATCHPAD+256) && [count]!=-1) do
+       databno=[count];
+       load(1,databno);
+       alias temp S9;
+       temp=SCRATCHPAD;
+       while(temp<1024) do
+         [temp]="";
+         temp=temp+1;
+       endwhile;
+       store(1,databno);
+       [DISK_LIST+databno]=0;
+       load(1,blockno);
+       count=count+1;
+    endwhile;
+      load(1,blockno);
+      count=SCRATCHPAD;
+      while(count<1024) do
+         [count]="";
+         count=count+1;
+      endwhile;
+      store(1,blockno);
+      [DISK_LIST+blockno]=0;
+      [fatindex*8 +FAT]=-1;
+      [fatindex*8+FAT+2]=-1;
+      store(5,19);
+      store(6,20);
+      [physicalSP-2]=0;
+endif;
+ireturn;
+

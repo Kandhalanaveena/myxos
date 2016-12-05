@@ -1,0 +1,89 @@
+alias physicalSP S0;
+physicalSP=[PTBR+2*(SP/512)]*512+SP%512;
+//print([physicalSP-1]);
+alias syscallno S14;
+syscallno=[physicalSP-1];
+if(syscallno==9) then
+alias filename S1;
+filename=[physicalSP-3];
+alias counter S2;
+counter=FAT;
+while(counter<FAT+64*8 && [counter]!=filename) do
+  counter=counter+8;
+endwhile;
+if(counter==FAT+64*8) then
+ [physicalSP-2]=-1;
+ ireturn;
+endif;
+alias basicblockno S3;
+basicblockno=[counter+2];
+//print(basicblockno);
+load(1,basicblockno);
+counter=PTBR;
+while(counter<PTBR+6) do
+   if([counter+1]=="01" || [counter+1]=="11") then
+     [MEM_LIST+[counter]]=[MEM_LIST+[counter]]-1;
+   else
+      if([counter]>=448) then
+         [DISK_LIST+[counter]]=[DISK_LIST+[counter]]-1;
+      endif;
+   endif;
+   counter=counter+2;
+endwhile;
+store(6,20);
+alias counter1 S4;
+counter=512;
+counter1=PTBR;
+while(counter<512+3 && [counter]!=-1 &&[counter]!="") do
+   [counter1]=[counter];
+   [counter1+1]="00";
+   counter=counter+1;
+   counter1=counter1+2;
+endwhile;
+while(counter1<PTBR+6) do
+    [counter1]=-1;
+    [counter1+1]="00";
+    counter1=counter1+2;
+endwhile;
+[PTBR+7]="01";
+alias currentpid S9;
+currentpid=(PTBR-1024)/8;
+alias currentpcb S10;
+currentpcb=READY_LIST+(currentpid*32);
+counter=currentpcb+15;
+alias syswideindex S11;
+while(counter<currentpcb+31) do
+      syswideindex=[counter];
+    if(syswideindex!=-1) then
+      [counter]=-1;
+      [counter+1]=-1;
+      [FILE_TABLE+2*syswideindex+1]=[FILE_TABLE+2*syswideindex+1]-1;
+      if([FILE_TABLE+2*syswideindex+1]==0) then
+        [FILE_TABLE+2*syswideindex]=-1;
+      endif;
+    endif;
+   counter=counter+2;
+endwhile;
+SP=3*512;
+physicalSP=[PTBR+2*(SP/512)]*512+(SP%512);
+[physicalSP]=0;
+
+ireturn;
+endif;
+if(syscallno==11) then
+alias currentpid S1;
+currentpid=(PTBR-1024)/8;
+[physicalSP-2]=currentpid;
+ireturn;
+endif;
+if(syscallno==12) then
+  alias ppid S1;
+  alias currentpid S2;
+  alias currentpcb S3;
+  currentpid=(PTBR-1024)/8;
+  currentpcb=READY_LIST+currentpid*32;
+  ppid=[currentpcb+31];
+  [physicalSP-2]=ppid;
+  ireturn;
+endif;
+

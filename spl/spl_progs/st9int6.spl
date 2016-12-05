@@ -1,0 +1,164 @@
+alias physicalSP S0;
+physicalSP= ([PTBR +2* (SP/512)] *512) +(SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+
+
+alias filename S2;
+filename=[physicalSP-3];
+
+if(sysCallNo==9) then
+   alias fat S3;
+   fat=FAT;
+   while(fat<(FAT+512) && [fat]!=filename) do
+      fat=fat+8;
+   endwhile;
+   if(fat>=(FAT+512)) then
+      [physicalSP-2]=-1;
+      ireturn;
+   endif;
+
+      //counting codeblocks
+      
+      alias blockno S4;
+      blockno=[fat+2];
+      load(1,blockno);
+
+      alias codeblocks S5;
+      alias temp S6;
+      temp=0;
+      codeblocks=0;
+      while(temp<3) do       //change
+        if([SCRATCHPAD+temp]!=-1) then
+            codeblocks=codeblocks+1;
+        endif;
+        temp=temp+1;
+      endwhile;
+
+      // counting codepages
+      
+      alias codepgs S7;
+      temp=0;
+      codepgs=0;
+      while(temp<3) do
+        if([PTBR+(temp*2)+1]!="00") then
+            codepgs=codepgs+1;
+        endif;
+        temp=temp+1;
+      endwhile;
+
+      if(codeblocks>3) then
+          [physicalSP-2]=-1;
+          print("more than 3");
+          ireturn;
+      endif;
+      
+
+
+      // for changing Pagetable
+      
+      alias count S8;
+      alias mempg S9;
+      alias freepgs S10;
+     if(codepgs>codeblocks) then
+         temp=codepgs-codeblocks;
+         count=2;
+         while(temp>0) do
+           mempg=PTBR+(count*2);
+           [MEM_LIST+[mempg]]=0;
+           [mempg]=-1;
+           [mempg+1]="00";
+
+           count=count-1;
+           temp=temp-1;
+         endwhile;
+         
+     else
+       if(codepgs<codeblocks) then
+         temp=codeblocks-codepgs;
+         count=0;
+         freepgs=0;
+         while(count<64) do
+           if([MEM_LIST+count]==0) then
+              freepgs=freepgs+1;
+           endif;
+           count=count+1;
+         endwhile;
+         if(freepgs<temp) then
+           [physicalSP-2]=-1;
+           ireturn;
+         endif;
+         count=codepgs;
+         alias num S11;
+         while(temp>0) do
+           num=0;
+           while(num<64 && [MEM_LIST+num]!=0) do
+              num=num+1;
+           endwhile;
+           [MEM_LIST+num]=1;
+           mempg=PTBR+(count*2);
+           [mempg]=num;
+           [mempg+1]="01";
+           count=count+1;
+           temp=temp-1;
+         endwhile;
+        endif;
+      endif;
+       
+       //loading blocks to memory
+       load(1,blockno);
+       temp=0;
+       count=0;
+       alias diskbl S12;
+       while(count<codeblocks) do            //change
+          mempg=[PTBR+(count*2)];
+          while(temp<3 && [SCRATCHPAD+temp]==-1) do   //change   
+            temp=temp+1;
+          endwhile;
+          diskbl=[SCRATCHPAD+temp];
+          load(mempg,diskbl);
+          count=count+1;
+          temp=temp+1;
+
+       endwhile;
+        
+        //closing all opened files
+        
+       alias pid S12;
+       pid=(PTBR-1024)/8;
+       alias pcb S13;
+       pcb=READY_LIST+pid*32;
+       alias ppoft S5;
+       pcb=pcb+15;
+       ppoft=pcb;
+       count=0;
+       while(count<16) do
+         ppoft=pcb+count;
+         if([ppoft]!=-1) then
+           alias swoftind S6;
+           swoftind=[ppoft];
+           alias swoft S7;
+           swoft=FILE_TABLE +(swoftind*2);
+           [swoft+1]=[swoft+1]-1;
+           if([swoft+1]==0) then
+               [swoft]=-1;
+           endif;
+           [ppoft]=-1;
+           [ppoft+1]=-1;
+         endif;
+         count=count+2;
+       endwhile;
+       
+       SP=3*512;
+       alias newphysicalSP S12;
+       newphysicalSP=([PTBR +2* (SP/512)] *512) +(SP%512);
+       [newphysicalSP]=0;
+       
+       [physicalSP-2]=0;
+         
+endif;  
+ireturn;
+
+    
+

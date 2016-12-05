@@ -1,0 +1,84 @@
+
+--stage 9&11----------------
+cd ~/myxos/spl/spl_progs
+../spl --os st11oss.spl
+../spl --int=5 st11int5.spl
+../spl --int=6 st11int6.spl
+../spl --int=7 st11int7.spl
+../spl --int=1 st8int1.spl
+../spl --int=2 st8int2.spl
+../spl --int=3 st8int3.spl
+../spl --int=4 st8int4.spl
+
+--stage 10--------------------
+cd ~/myxos/spl/spl_progs
+../spl --os st12oss-10.spl
+../spl --int=5 st12int5mod.spl
+../spl --int=6 st12int6-10.spl
+../spl --int=7 st12int7mod.spl
+../spl --int=timer st9timer.spl
+../spl --exhandler st12excmod.spl
+
+../spl --int=7 st12int7-10.spl
+../spl --int=5 st12int5mod.spl
+
+--stage 9--------------------
+cd ~/myxos/apl/apl_progs
+../apl st9even.apl
+../apl st9fork.apl
+../apl st9exec.apl
+../apl st9exec2.apl
+../apl st9exit.apl
+../apl st9odd.apl
+
+--stage 11-----------------
+cd ~/myxos/apl/apl_progs
+../apl st11pid.apl
+../apl st11wait.apl
+../apl shell.apl
+
+--stage 10----------------
+cd ~/myxos/apl/apl_progs
+../apl sample.apl
+../apl arithexec.apl
+
+
+cd ~/myxos/xfs-interface
+./xfs-interface
+
+load --os $HOME/myxos/spl/spl_progs/os_startup.xsm
+load --int=5 $HOME/myxos/spl/spl_progs/int5.xsm
+load --int=6 $HOME/myxos/spl/spl_progs/int6.xsm
+load --int=7 $HOME/myxos/spl/spl_progs/int7.xsm
+load --int=1 $HOME/myxos/spl/spl_progs/int1.xsm
+load --int=2 $HOME/myxos/spl/spl_progs/int2.xsm
+load --int=3 $HOME/myxos/spl/spl_progs/int3.xsm
+load --int=4 $HOME/myxos/spl/spl_progs/int4.xsm
+load --int=timer $HOME/myxos/spl/spl_progs/timer.xsm
+load --exhandler $HOME/myxos/spl/spl_progs/exhandler.xsm
+
+--stage 9----
+load --init $HOME/myxos/apl/apl_progs/st9fork.xsm
+load --init $HOME/myxos/apl/apl_progs/st9exec.xsm
+load --init $HOME/myxos/apl/apl_progs/st9exec2.xsm
+load --init $HOME/myxos/apl/apl_progs/st9exit.xsm
+
+--stage 11---
+load --init $HOME/myxos/apl/apl_progs/st11pid.xsm
+load --init $HOME/myxos/apl/apl_progs/st11wait.xsm
+load --init $HOME/myxos/apl/apl_progs/odd.xsm
+
+load --exec $HOME/myxos/apl/apl_progs/st9odd.xsm
+load --exec $HOME/myxos/apl/apl_progs/even.xsm
+
+--stage 10------------
+load --init $HOME/myxos/apl/apl_progs/sample.xsm
+load --exec $HOME/myxos/apl/apl_progs/sample.xsm
+--
+
+
+rm --exec 
+cd ~/myxos/xsm
+./xsm
+
+./xsm --timer=0

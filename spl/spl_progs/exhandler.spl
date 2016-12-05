@@ -1,0 +1,89 @@
+alias cause S0;
+alias vpagenum S1;
+alias ip_addr S2;
+alias counter S3;
+alias mempage S4;
+alias id S5;
+alias counter1 S6;
+alias ppage S7;
+alias physicalSP S8;
+cause=EFR%10;
+vpagenum=(EFR/10)%100;
+ip_addr=EFR/1000;
+if(cause!=0) then
+ print cause;
+ inline "JMP 11776";
+else
+ if([PTBR+2*vpagenum]==-1) then
+    inline "JMP 11776";
+ else
+   counter=MEM_LIST;
+   while(counter<MEM_LIST+64 && [counter]!=0) do
+     counter=counter+1;
+   endwhile;
+   if(counter<MEM_LIST+64) then
+     [counter]=1;
+     mempage=counter-MEM_LIST;
+   else
+     counter=PTBR+2*vpagenum;
+     while(1==1) do
+      if(counter>=1280) then
+         counter=1024;
+         continue;
+      endif;
+      id=(counter-1024)/8;
+      if(counter==1024+id*8+6) then
+         counter=counter+2;
+         continue;
+      endif;
+     if([counter+1]=="01" || [counter+1]=="11") then
+         if([counter+1]=="11") then
+            [counter+1]="01";
+            counter=counter+2;
+            continue;
+         else
+            if([MEM_LIST+[counter]]>1) then
+              counter=counter+2;
+              continue;
+            else
+              counter1=DISK_LIST+448;
+              while(counter1<DISK_LIST+512 && [counter1]!=0) do
+               counter1=counter1+1;
+              endwhile;
+              if(counter1==DISK_LIST+512) then
+                inline "JMP 11776";
+              else
+               store([counter],[counter1 - DISK_LIST]);
+               [counter1]=1;
+               mempage=[counter];
+               [counter]=[counter1-DISK_LIST];
+               [counter+1]="00";
+               break;
+              endif;
+            endif;
+         endif;
+
+     else
+       counter=counter+2;
+       continue;
+     endif;
+   endwhile;
+  endif;
+  ppage=[PTBR+2*vpagenum];
+  if(ppage>20 && ppage<448) then
+     load(mempage,ppage);
+  else
+     load(mempage,ppage);
+     [DISK_LIST+ppage]=[DISK_LIST+ppage]-1;
+  endif;
+  [PTBR+2*vpagenum]=mempage;
+  [PTBR+2*vpagenum+1]="11";
+  SP=SP+1;
+  physicalSP=[PTBR+2*(SP/512)]*512+SP%512;
+  [physicalSP]=ip_addr;
+  store(6,20);
+ ireturn;
+endif;
+endif;
+
+  

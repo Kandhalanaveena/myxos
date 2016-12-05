@@ -1,0 +1,73 @@
+alias physicalSP S0;
+physicalSP= ([PTBR +2* (SP/512)] *512) +(SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+//print (sysCallNo);
+
+if(sysCallNo==5) then
+  alias filedesc S2;
+  filedesc=[physicalSP-4];
+
+  alias word S3;
+  word=[physicalSP-3];
+
+
+ if(filedesc<0 || filedesc>7) then
+     [physicalSP-2]=-1;
+     ireturn;
+ endif;
+     alias pid S4;
+     pid=(PTBR-1024)/8;
+     alias ppoft S5;
+     ppoft=READY_LIST+(pid*32)+15+(filedesc*2);
+     if([ppoft]==-1) then
+         [physicalSP-2]=-1;
+         ireturn;
+     endif;
+     alias swoftind S6;
+     alias lseek S7;
+     swoftind=[ppoft];
+     lseek=[ppoft+1];
+     alias fatindex S8;
+     fatindex=[FILE_TABLE+(swoftind*2)];
+     alias blockno S9;
+     blockno=[FAT+(fatindex*8)+2];
+     load(1,blockno);
+     alias databno S10;
+     databno=SCRATCHPAD+(lseek/512);
+     
+     alias diskbl S11;
+     diskbl=[databno];
+     if([databno]==-1) then
+          alias disk S12;
+          disk=DISK_LIST;
+          while(disk<=DISK_LIST+447 && [disk]!=0) do
+               disk=disk+1;
+          endwhile;
+          if(disk>DISK_LIST+447) then
+               [physicalSP-2]=-1;
+               ireturn;
+          endif;
+
+           [databno]=disk-DISK_LIST;
+           diskbl=disk-DISK_LIST;
+          
+           [DISK_LIST+diskbl]=1;
+           store(1,blockno);
+           alias fat S13;
+           fat=FAT+(fatindex*8);
+           [fat+1]=[fat+1]+512;
+           store(5,19);
+           store(6,20);
+      endif;
+      load(1,diskbl);
+      [SCRATCHPAD+(lseek%512)]=word;
+      store(1,diskbl);
+      [ppoft+1]=lseek+1;
+      [physicalSP-2]=0;
+endif;  
+ireturn;
+
+    
+

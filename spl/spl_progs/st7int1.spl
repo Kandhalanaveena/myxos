@@ -1,0 +1,60 @@
+alias physicalSP S0;
+physicalSP= ([PTBR +2* (SP/512)] *512) +(SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+//print (sysCallNo);
+
+alias filename S2;
+filename=[physicalSP-3];
+
+if(sysCallNo==1) then
+    alias fat S3;
+    fat=FAT;
+    while(fat<DISK_LIST && [fat]!=filename) do
+       fat=fat+8;
+    endwhile;
+    if(fat<DISK_LIST) then
+        [physicalSP-2]=0;
+        ireturn;
+    endif;
+    
+        alias disk S4;
+        disk=DISK_LIST+20;
+        while(disk<=DISK_LIST+447 && [disk]!=0) do
+             disk=disk+1;
+        endwhile;
+        if(disk>DISK_LIST+447) then
+             [physicalSP-2]=-1;
+             ireturn;
+        endif;
+             fat=FAT;
+             while([fat+2]!=-1 && fat<DISK_LIST) do
+                 fat=fat+8;
+             endwhile;
+             if(fat>=DISK_LIST) then
+                  [physicalSP-2]=-1;
+                  ireturn;
+             endif;
+                 [fat]=filename;
+                 [fat+1]=0;
+                 alias blockno S5;
+                 alias scratch S6;
+                 blockno=disk-DISK_LIST;
+                 [fat+2]=blockno;
+                 load(1,blockno);
+                 scratch=SCRATCHPAD;
+                 while(scratch<=SCRATCHPAD+511) do
+                      [scratch]=-1;
+                      scratch=scratch+1;
+                 endwhile;
+                 store(1,blockno);
+                 [DISK_LIST+blockno]=1;
+                 store(5,19);
+                 store(6,20);
+                 [physicalSP-2]=0; 
+endif;
+ireturn;    
+       
+    
+
